@@ -4,7 +4,7 @@ const db = require('./userDb.js');
 
 const router = express.Router();
 
-router.post('/', (req, res) => {
+router.post('/', validateUser, (req, res) => {
     const userData = req.body;
     db.insert(userData)
         .then(user => {
@@ -15,7 +15,7 @@ router.post('/', (req, res) => {
         });
 });
 
-router.post('/:id/posts', validateUserId, (req, res) => {
+router.post('/:id/posts', validateUserId, validatePost, (req, res) => {
     const postData = req.body;
     const id = req.params.id;
     db.getById(id)
@@ -27,7 +27,7 @@ router.post('/:id/posts', validateUserId, (req, res) => {
             } else if (!postData.text) {
                 res.status(400).json({ errorMessage: "Please provide text for the post." });
             } else {
-                db.insertComment(postData)
+                db.insert(postData)
                     .then(post => {
                         res.status(201).json(post);
                     })
@@ -65,8 +65,8 @@ router.get('/:id', validateUserId, (req, res) => {
 
 router.get('/:id/posts', validateUserId, (req, res) => {
     const id = req.params.id;
-    db.findPostComments(id)
-        .then(post => {
+    db.getUserPosts(id)
+        .then(posts => {
             if (!post[0]) {
                 res.status(404).json({ message: "The post with the specified ID does not exist." });
             } else {
