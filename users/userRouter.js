@@ -1,14 +1,15 @@
 const express = require('express');
 
-const db = require('./userDb.js');
+const userDb = require('./userDb.js');
+const postDb = require('../posts/postDb.js');
 
 const router = express.Router();
 
 router.post('/', validateUser, (req, res) => {
     const userData = req.body;
-    db.insert(userData)
+    userDb.insert(userData)
         .then(user => {
-            res.status(201).json({ message: `added user: ${user.name}` });
+            res.status(201).json({ message: `added user: ${userData.name}` });
         })
         .catch(err => {
             res.status(500).json({ message: "failed to post user to the database" });
@@ -17,29 +18,17 @@ router.post('/', validateUser, (req, res) => {
 
 router.post('/:id/posts', validateUserId, validatePost, (req, res) => {
     const postData = req.body;
-    const id = req.params.id;
-    db.getById(id)
-        .then(user => {
-            console.log(user)
-            if (!user[0]) {
-                console.log(id);
-                res.status(404).json({ message: "The user with the specified ID does not exist." });
-            } else if (!postData.text) {
-                res.status(400).json({ errorMessage: "Please provide text for the post." });
-            } else {
-                db.insert(postData)
-                    .then(post => {
-                        res.status(201).json(post);
-                    })
-                    .catch(err => {
-                        res.status(500).json({ error: "There was an error while saving the post to the database" });
-                    })
-            }
+    postDb.insert(postData)
+        .then(post => {
+            res.status(201).json(post);
+        })
+        .catch(err => {
+            res.status(500).json({ error: "There was an error while saving the post to the database" });
         })
 });
 
 router.get('/', (req, res) => {
-    db.get()
+    userDb.get()
         .then(users => {
             res.status(200).json(users);
         })
@@ -53,7 +42,7 @@ router.get('/:id', validateUserId, (req, res) => {
     if (!id) {
         res.status(404).json({ error: "the user with that id does not exist" });
     } else {
-        db.getById(id)
+        userDb.getById(id)
             .then(user => {
                 res.status(200).json(user);
             })
@@ -65,16 +54,12 @@ router.get('/:id', validateUserId, (req, res) => {
 
 router.get('/:id/posts', validateUserId, (req, res) => {
     const id = req.params.id;
-    db.getUserPosts(id)
+    userDb.getUserPosts(id)
         .then(posts => {
-            if (!post[0]) {
-                res.status(404).json({ message: "The post with the specified ID does not exist." });
-            } else {
-                res.status(201).json(post);
-            }
+          res.status(200).json(posts);
         })
         .catch(err => {
-            res.status(500).json({ error: "Could not get comments from database" });
+            res.status(500).json({ error: "Could not get posts from database" });
         })
 });
 
@@ -83,7 +68,7 @@ router.delete('/:id', validateUserId, (req, res) => {
     if (!id) {
         res.status(404).json({ error: "the user with that id does not exist" });
     } else {
-        db.remove(id)
+        userDb.remove(id)
             .then(user => {
                 res.status(200).json(user);
             })
@@ -101,9 +86,9 @@ router.put('/:id', validateUserId, (req, res) => {
     } else if (!changes.name) {
         res.status(400).json({ error: "please provide a name for the user" });
     } else {
-        db.getById(id)
+        userDb.update(id, changes)
             .then(user => {
-                res.status(200).json(user);
+                res.status(200).json(changes);
             })
             .catch(err => {
                 res.status(500).json({ error: "failed to get user from the database" });
@@ -114,12 +99,12 @@ router.put('/:id', validateUserId, (req, res) => {
 //custom middleware
 
 function validateUserId(req, res, next) {
-    console.log('validating user id');
     const id = req.params.id;
-    db.getById(id)
+    userDb.getById(id)
         .then(user => {
             if (id) {
                 req.user = user;
+                console.log('user id validated')
             } else {
                 res.status(400).json({ message: "invalid user id" });
             }
@@ -133,8 +118,10 @@ function validateUser(req, res, next) {
         res.status(400).json({ message: "missing user data" });
     } else if (!userData.name) {
         res.status(400).json({ message: "missing required name field" });
+    } else {
+        console.log('user validated');
+        next();
     }
-    next();
 };
 
 function validatePost(req, res, next) {
@@ -143,8 +130,10 @@ function validatePost(req, res, next) {
         res.status(400).json({ message: "missing post data" });
     } else if (!postData.text) {
         res.status(400).json({ message: "missing required text field" });
+    } else {
+        console.log('post validated');
+        next();
     }
-    next();
 };
 
 module.exports = router;
